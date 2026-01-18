@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🎙️ AI Voice Chat Assistant</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="app">
+    <div class="container">
+      <!-- Header -->
+      <header class="header">
+        <h1>🎙️ AI Voice Chat Assistant</h1>
+        <p class="subtitle">Powered by OpenAI Realtime API + Livekit</p>
+      </header>
+
+      <!-- Status Card -->
+      <div class="status-card">
+        <div class="status-item">
+          <span class="status-label">OpenAI:</span>
+          <span class="status-value" id="openai-status">⚪ Disconnected</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Livekit:</span>
+          <span class="status-value" id="livekit-status">⚪ Disconnected</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Audio:</span>
+          <span class="status-value" id="audio-status">⚪ Inactive</span>
+        </div>
+      </div>
+
+      <!-- Control Panel -->
+      <div class="control-panel">
+        <button id="connect-btn" class="btn btn-primary">
+          🚀 Connect & Start
+        </button>
+        <button id="disconnect-btn" class="btn btn-secondary" disabled>
+          🛑 Disconnect
+        </button>
+      </div>
+
+      <!-- Room Info -->
+      <div class="info-box">
+        <h3>📋 Room Information</h3>
+        <p><strong>Room Name:</strong> <code id="room-name">test-room</code></p>
+        <p><strong>Participant:</strong> <code>User</code></p>
+      </div>
+
+      <!-- Chat Log -->
+      <div class="chat-container">
+        <div class="chat-header">
+          <h3>💬 Conversation Log</h3>
+          <button id="clear-log" class="btn-small">Clear</button>
+        </div>
+        <div id="chat-log" class="chat-log">
+          <div class="log-entry system">
+            <span class="log-time">System</span>
+            <span class="log-message">Click "Connect & Start" to begin voice chat...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Usage Instructions -->
+      <div class="instructions">
+        <h3>📝 Hướng dẫn sử dụng:</h3>
+        <ol>
+          <li>Click nút <strong>"Connect & Start"</strong></li>
+          <li>Cho phép truy cập <strong>microphone</strong> khi trình duyệt yêu cầu</li>
+          <li>Đợi kết nối thành công (status chuyển sang 🟢 Connected)</li>
+          <li>Bắt đầu nói tiếng Việt với AI assistant</li>
+          <li>AI sẽ trả lời qua loa/headphones của bạn</li>
+        </ol>
+
+        <h3>💡 Câu hỏi gợi ý:</h3>
+        <ul>
+          <li>"Xin chào, bạn là ai?"</li>
+          <li>"Thời tiết ở Hà Nội thế nào?"</li>
+          <li>"Mấy giờ rồi?"</li>
+          <li>"Tìm kiếm thông tin về Hồ Chí Minh"</li>
+        </ul>
+
+        <h3>🔧 Functions Available:</h3>
+        <ul>
+          <li><code>getCurrentWeather</code> - Lấy thông tin thời tiết</li>
+          <li><code>getCurrentTime</code> - Lấy thời gian hiện tại</li>
+          <li><code>searchWikipedia</code> - Tìm kiếm Wikipedia</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
