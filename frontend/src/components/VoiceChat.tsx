@@ -44,9 +44,23 @@ export default function VoiceChat() {
             
             if (message.type === 'bot_message') {
               console.log('✅ [Participant] Adding bot message to transcript');
+              
+              // Create timestamp in Vietnam timezone (GMT+7)
+              const now = new Date();
+              const vnTimestamp = new Intl.DateTimeFormat('vi-VN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false,
+                timeZone: 'Asia/Ho_Chi_Minh'
+              }).format(now);
+              
               setMessages(prev => [...prev, {
                 text: message.text,
-                timestamp: message.timestamp
+                timestamp: vnTimestamp
               }]);
             }
           } catch (error) {
