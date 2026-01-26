@@ -288,9 +288,7 @@ export default function VoiceChat() {
 
           {status === 'disconnected' && (
             <div className="input-section">
-              <button onClick={connect} className="btn-primary">
-                📞 Bắt Đầu Cuộc Trò chuyện
-              </button>
+              <button onClick={connect} className="btn-primary"> Bắt Đầu Cuộc Trò chuyện</button>
               <p className="hint">Bạn sẽ cần cho phép truy cập microphone</p>
             </div>
           )}
