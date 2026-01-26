@@ -80,13 +80,12 @@ export default function VoiceChat() {
   };
 
   useEffect(() => {
-    connect();
     return () => {
       if (room) {
         room.disconnect();
       }
     };
-  }, []);
+  }, [room]);
 
   return (
     <div className="voice-chat-container">
@@ -102,8 +101,11 @@ export default function VoiceChat() {
         )}
 
         {status === 'disconnected' && (
-          <div className="info-box">
-            <p>Ngắt kết nối. Đang thử kết nối lại...</p>
+          <div className="input-section">
+            <button onClick={connect} className="btn-primary">
+              📞 Bắt Đầu Cuộc Gọi
+            </button>
+            <p className="hint">Bạn sẽ cần cho phép truy cập microphone</p>
           </div>
         )}
 
