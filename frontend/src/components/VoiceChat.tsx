@@ -97,33 +97,6 @@ export default function VoiceChat() {
         }
       });
 
-      // Listen for data from all participants including agent
-      newRoom.on(RoomEvent.DataReceived, (
-        payload: Uint8Array,
-        participant?: any,
-        _kind?: any,
-        _topic?: string
-      ) => {
-        try {
-          const text = new TextDecoder().decode(payload);
-          console.log('📨 DataReceived from:', participant?.identity || 'unknown');
-          console.log('📨 Raw payload:', text);
-          
-          const message = JSON.parse(text);
-          console.log('📝 Parsed message:', message);
-          
-          if (message.type === 'bot_message') {
-            console.log('✅ Adding bot message to transcript');
-            setMessages(prev => [...prev, {
-              text: message.text,
-              timestamp: message.timestamp
-            }]);
-          }
-        } catch (error) {
-          console.error('❌ Error parsing data message:', error);
-        }
-      });
-
       await newRoom.connect(credentials.livekit_url, credentials.token);
       await newRoom.localParticipant.setMicrophoneEnabled(true);
 
