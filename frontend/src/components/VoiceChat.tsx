@@ -43,6 +43,28 @@ export default function VoiceChat() {
 
       newRoom.on(RoomEvent.ParticipantConnected, (participant) => {
         console.log('👤 Participant joined:', participant.identity);
+        
+        // Subscribe to data from this participant
+        participant.on('dataReceived', (payload: Uint8Array) => {
+          try {
+            const text = new TextDecoder().decode(payload);
+            console.log('📨 [Participant] DataReceived from:', participant.identity);
+            console.log('📨 [Participant] Raw payload:', text);
+            
+            const message = JSON.parse(text);
+            console.log('📝 [Participant] Parsed message:', message);
+            
+            if (message.type === 'bot_message') {
+              console.log('✅ [Participant] Adding bot message to transcript');
+              setMessages(prev => [...prev, {
+                text: message.text,
+                timestamp: message.timestamp
+              }]);
+            }
+          } catch (error) {
+            console.error('❌ [Participant] Error parsing data message:', error);
+          }
+        });
       });
 
       newRoom.on(RoomEvent.TrackSubscribed, (track, _publication, participant) => {
