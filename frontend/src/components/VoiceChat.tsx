@@ -44,7 +44,7 @@ export default function VoiceChat() {
         console.log('👤 Participant joined:', participant.identity);
       });
 
-      newRoom.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+      newRoom.on(RoomEvent.TrackSubscribed, (track, _publication, participant) => {
         if (track.kind === Track.Kind.Audio) {
           const audioElement = track.attach();
           audioElement.play();
@@ -52,13 +52,13 @@ export default function VoiceChat() {
         }
       });
 
-      newRoom.on(RoomEvent.TrackMuted, (publication, participant) => {
+      newRoom.on(RoomEvent.TrackMuted, (publication) => {
         if (publication.kind === Track.Kind.Audio) {
           setAgentSpeaking(false);
         }
       });
 
-      newRoom.on(RoomEvent.TrackUnmuted, (publication, participant) => {
+      newRoom.on(RoomEvent.TrackUnmuted, (publication) => {
         if (publication.kind === Track.Kind.Audio) {
           setAgentSpeaking(true);
         }
