@@ -268,7 +268,7 @@ export default function VoiceChat() {
           {messages.length > 0 && (
             <div className="transcript-box-recording">
               <div className="transcript-header">
-                <span>📝 Transcript</span>
+                <span>📝 Realtime Bot's transcript</span>
               </div>
               <div className="transcript-messages">
                 {messages.map((msg, index) => (
