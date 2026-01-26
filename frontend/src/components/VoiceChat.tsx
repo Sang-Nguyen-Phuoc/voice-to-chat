@@ -240,7 +240,7 @@ export default function VoiceChat() {
             </div>
             
             <p className="recording-status">
-              {agentSpeaking ? 'Agent đang suy nghĩ và trả lời...' : isPaused ? 'Dừng thu âm' : 'Bắt đầu nói'}
+              {agentSpeaking ? 'Agent đang suy nghĩ và trả lời...' : isPaused ? 'Đã dừng thu âm' : 'Bắt đầu nói'}
             </p>
           </div>
           
