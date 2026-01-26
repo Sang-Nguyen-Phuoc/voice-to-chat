@@ -106,16 +106,6 @@ export default function VoiceChat() {
     }
   };
 
-  // Test function - thêm mock message để test UI
-  const addTestMessage = () => {
-    const testMsg: BotMessage = {
-      text: 'Dạ, em hiểu rồi ạ. Túi Thần Tài là sản phẩm tiết kiệm của MoMo giúp bạn tích lũy tiền với lãi suất hấp dẫn hơn gửi tiết kiệm ngân hàng truyền thống.',
-      timestamp: `[${new Date().toISOString().slice(0, 19).replace('T', ' ')}]`
-    };
-    setMessages(prev => [...prev, testMsg]);
-    console.log('🧪 Added test message');
-  };
-
   useEffect(() => {
     return () => {
       if (room) {
@@ -159,11 +149,6 @@ export default function VoiceChat() {
               💡 Hãy hỏi về các sản phẩm của MoMo như Túi Thần Tài, nạp tiền, rút tiền...
             </div>
             
-            {/* Debug: Show message count */}
-            <div style={{ color: '#666', fontSize: '0.8rem', textAlign: 'center', margin: '8px 0' }}>
-              Messages: {messages.length}
-            </div>
-            
             {messages.length > 0 && (
               <div className="transcript-box">
                 <div className="transcript-header">
@@ -179,20 +164,6 @@ export default function VoiceChat() {
                 </div>
               </div>
             )}
-            
-            {/* Test button */}
-            <button onClick={addTestMessage} className="btn-test" style={{
-              padding: '8px 16px',
-              background: '#333',
-              color: '#60a5fa',
-              border: '1px solid #444',
-              borderRadius: '6px',
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              marginBottom: '8px'
-            }}>
-              🧪 Test Transcript UI
-            </button>
             
             <button onClick={disconnect} className="btn-danger">
               📞 Kết Thúc Cuộc Gọi
