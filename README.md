@@ -59,6 +59,7 @@ voice-to-chat/
 **Mục đích**: Tạo LiveKit room và generate access token cho client
 
 **Flow hoạt động**:
+
 ```typescript
 POST /api/rooms/create
 Body: { user_name: string, user_id?: string }
@@ -76,33 +77,30 @@ Body: { user_name: string, user_id?: string }
 ```
 
 **Code highlights**:
+
 ```typescript
 const roomService = new RoomServiceClient(
   LIVEKIT_URL,
   LIVEKIT_API_KEY,
-  LIVEKIT_API_SECRET
+  LIVEKIT_API_SECRET,
 );
 
 await roomService.createRoom({
   name: roomName,
-  emptyTimeout: 600,      // Room tự động đóng sau 10 phút không có người
-  maxParticipants: 2,     // Chỉ user + agent
+  emptyTimeout: 600, // Room tự động đóng sau 10 phút không có người
+  maxParticipants: 2, // Chỉ user + agent
 });
 
-const token = new AccessToken(
-  LIVEKIT_API_KEY,
-  LIVEKIT_API_SECRET,
-  {
-    identity: userId,
-    name: user_name,
-  }
-);
+const token = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
+  identity: userId,
+  name: user_name,
+});
 
 token.addGrant({
   room: roomName,
   roomJoin: true,
-  canPublish: true,       // Cho phép gửi audio
-  canSubscribe: true,     // Cho phép nhận audio từ agent
+  canPublish: true, // Cho phép gửi audio
+  canSubscribe: true, // Cho phép nhận audio từ agent
 });
 
 const jwt = await token.toJwt();
@@ -115,17 +113,17 @@ const jwt = await token.toJwt();
 ```typescript
 export async function createRoom(
   userName: string,
-  userId?: string
+  userId?: string,
 ): Promise<RoomCredentials> {
-  const response = await fetch('/api/rooms/create', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  const response = await fetch("/api/rooms/create", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ user_name: userName, user_id: userId }),
   });
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.error || 'Failed to create room');
+    throw new Error(error.error || "Failed to create room");
   }
 
   return response.json();
@@ -139,68 +137,127 @@ export async function createRoom(
 #### State Management
 
 ```typescript
-const [room, setRoom] = useState<Room | null>(null);           // LiveKit room instance
-const [status, setStatus] = useState<ConnectionStatus>('disconnected');
+const [room, setRoom] = useState<Room | null>(null); // LiveKit room instance
+const [status, setStatus] = useState<ConnectionStatus>("disconnected");
 const [error, setError] = useState<string | null>(null);
-const [agentSpeaking, setAgentSpeaking] = useState(false);     // Agent đang nói
+const [agentSpeaking, setAgentSpeaking] = useState(false); // Agent đang nói
+const [messages, setMessages] = useState<BotMessage[]>([]); // Bot transcript messages
+```
+
+#### Bot Transcript Interface
+
+```typescript
+interface BotMessage {
+  text: string; // Nội dung bot nói
+  timestamp: string; // Format: [YYYY-MM-DD HH:MM:SS]
+}
 ```
 
 #### Connection Flow
 
 ```typescript
 const connect = async () => {
-  setStatus('connecting');
-  
+  setStatus("connecting");
+
   // 1. Tạo room và lấy credentials
   const userName = `User-${Date.now()}`;
   const credentials = await createRoom(userName);
-  
+
   // 2. Khởi tạo LiveKit Room
   const newRoom = new Room({
-    adaptiveStream: true,   // Tự động điều chỉnh quality
-    dynacast: true,         // Tối ưu bandwidth
+    adaptiveStream: true, // Tự động điều chỉnh quality
+    dynacast: true, // Tối ưu bandwidth
   });
-  
+
   // 3. Setup event listeners
   newRoom.on(RoomEvent.Connected, () => {
-    setStatus('connected');
+    setStatus("connected");
   });
-  
+
   newRoom.on(RoomEvent.TrackSubscribed, (track, _publication, participant) => {
     if (track.kind === Track.Kind.Audio) {
-      const audioElement = track.attach();  // Tạo <audio> element
-      audioElement.play();                  // Play audio từ agent
+      const audioElement = track.attach(); // Tạo <audio> element
+      audioElement.play(); // Play audio từ agent
     }
   });
-  
+
   newRoom.on(RoomEvent.TrackUnmuted, (publication) => {
     if (publication.kind === Track.Kind.Audio) {
-      setAgentSpeaking(true);  // Agent bắt đầu nói
+      setAgentSpeaking(true); // Agent bắt đầu nói
     }
   });
-  
+
   // 4. Connect và enable microphone
   await newRoom.connect(credentials.livekit_url, credentials.token);
   await newRoom.localParticipant.setMicrophoneEnabled(true);
-  
+
   setRoom(newRoom);
 };
 ```
 
 #### LiveKit Events Handling
 
-| Event | Mục đích | Handler |
-|-------|----------|---------|
-| `RoomEvent.Connected` | Kết nối thành công | Set status = 'connected' |
-| `RoomEvent.Disconnected` | Mất kết nối | Set status = 'disconnected', reset state |
-| `RoomEvent.ParticipantConnected` | Agent join room | Log participant info |
-| `RoomEvent.TrackSubscribed` | Nhận audio track từ agent | Attach và play audio |
-| `RoomEvent.TrackMuted` | Agent tắt mic | Set agentSpeaking = false |
-| `RoomEvent.TrackUnmuted` | Agent bật mic | Set agentSpeaking = true |
+| Event                            | Mục đích                  | Handler                                  |
+| -------------------------------- | ------------------------- | ---------------------------------------- |
+| `RoomEvent.Connected`            | Kết nối thành công        | Set status = 'connected'                 |
+| `RoomEvent.Disconnected`         | Mất kết nối               | Set status = 'disconnected', reset state |
+| `RoomEvent.ParticipantConnected` | Agent join room           | Log participant info                     |
+| `RoomEvent.TrackSubscribed`      | Nhận audio track từ agent | Attach và play audio                     |
+| `RoomEvent.TrackMuted`           | Agent tắt mic             | Set agentSpeaking = false                |
+| `RoomEvent.TrackUnmuted`         | Agent bật mic             | Set agentSpeaking = true                 |
+| `RoomEvent.DataReceived`         | Nhận text transcript      | Parse JSON và update messages state      |
+
+#### Bot Transcript Data Channel
+
+**Event**: `RoomEvent.DataReceived`
+
+**Message format** (JSON):
+
+```json
+{
+  "type": "bot_message",
+  "text": "Dạ, em hiểu rồi ạ. Túi Thần Tài là sản phẩm tiết kiệm của MoMo...",
+  "timestamp": "[2026-01-25 16:30:45]"
+}
+```
+
+**Handler logic**:
+
+```typescript
+newRoom.on(RoomEvent.DataReceived, (payload: Uint8Array) => {
+  try {
+    // 1. Decode binary to text
+    const text = new TextDecoder().decode(payload);
+
+    // 2. Parse JSON
+    const message = JSON.parse(text);
+
+    // 3. Validate & extract
+    if (message.type === "bot_message") {
+      setMessages((prev) => [
+        ...prev,
+        {
+          text: message.text,
+          timestamp: message.timestamp,
+        },
+      ]);
+    }
+  } catch (error) {
+    console.error("Error parsing data message:", error);
+  }
+});
+```
+
+**Features**:
+
+- ✅ UTF-8 encoding hỗ trợ tiếng Việt
+- ✅ Messages arrive in order (KIND_RELIABLE)
+- ✅ Auto-clear messages on disconnect
+- ✅ Error handling cho corrupted data
 
 #### UI States
 
-```typescript
+````typescript
 // State 1: Disconnected - Chờ user bấm nút
 {status === 'disconnected' && (
   <button onClick={connect} className="btn-primary">
@@ -213,19 +270,63 @@ const connect = async () => {
   <div className="spinner"></div>
 )}
 
-// State 3: Connected - Đang trong cuộc gọi
+// State 3: Connected - Đang trong cuộc gọi + Transcript
 {status === 'connected' && (
-  <div className={agentSpeaking ? 'speaking' : 'listening'}>
-    {agentSpeaking ? '🎙️ Agent đang nói...' : '✓ Đã kết nối'}
-  </div>
-)}
-```
+  <>
+    <div className={agentSpeaking ? 'speaking' : 'listening'}>
+      {agentSpeaking ? '🎙️ Agent đang nói...' : '✓ Đã kết nối'}
+    </div>
 
-### 4. Styling (`frontend/src/index.css`)
+    {/* Bot Transcript Display */}
+    {messages.length > 0 && (
+      <div className="transcript-box">
+        <div className="transcript-header">📝 Transcript</div>
+        <div className="transcript-messages">
+          {messages.map((msg, index) => (
+            <div key={index} className="transcript-message">
+              <div className="transcript-timestamp">{msg.timestamp}</div>
+              <div className="transcript-text">{msg.text}</div>
+            </div>
+- **Transcript box**: Scrollable với max-height 300px
 
-**Dark Theme Design**:
-- Background: `#000000` (pure black)
-- Card: `#1a1a1a` với border `#333`
+```css
+body {
+  background: #000000;
+}
+
+.voice-chat-card {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+}
+
+.status-indicator.speaking .status-dot {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Transcript Box Styles */
+.transcript-box {
+  background: #0a0a0a;
+  border: 1px solid #333;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.transcript-message {
+  background: #1a1a1a;
+  border-left: 3px solid #60a5fa;
+  padding: 12px;
+}
+
+.transcript-timestamp {
+  font-size: 0.75rem;
+  color: #666;
+  font-family: monospace;
+}
+
+.transcript-text {
+  color: #e5e5e5;
+  line-height: 1.6
 - Text: White/Gray tones
 - Status indicators: Green (listening) / Blue (speaking)
 - Animations: Pulse effect cho speaking state
@@ -244,7 +345,7 @@ body {
 .status-indicator.speaking .status-dot {
   animation: pulse 1.5s ease-in-out infinite;
 }
-```
+````
 
 ### 5. Vercel Configuration (`vercel.json`)
 
@@ -270,6 +371,7 @@ body {
 ```
 
 **Key points**:
+
 - Build frontend từ `frontend/` folder
 - Install dependencies ở cả root (API) và frontend
 - Serverless functions từ `api/` folder
@@ -314,6 +416,7 @@ vercel dev
 #### Via GitHub (Recommended)
 
 1. **Push code to GitHub**
+
 ```bash
 git add .
 git commit -m "Initial commit"
@@ -359,7 +462,14 @@ vercel --prod
 
 ## 🧪 Testing
 
-### Test API Endpoint
+- Status changes to "🎙️ Agent đang nói..."
+- **Transcript box appears** với text response
+- Timestamp hiển thị đúng format
+
+7. Listen to agent response
+8. Nói tiếp câu khác → Transcript updates với message mới
+9. Click **"📞 Kết Thúc Cuộc Gọi"** to disconnect
+10. Verify: Transcript cleared on
 
 ```bash
 curl -X POST https://your-app.vercel.app/api/rooms/create \
@@ -368,6 +478,7 @@ curl -X POST https://your-app.vercel.app/api/rooms/create \
 ```
 
 **Expected response**:
+
 ```json
 {
   "room_name": "momo-room-1737859200000-abc123",
@@ -392,19 +503,31 @@ curl -X POST https://your-app.vercel.app/api/rooms/create \
 ### Common Issues
 
 **1. API returns 500 error**
+
 - Check environment variables are set on Vercel
 - Verify LiveKit credentials are correct
 
 **2. "Unexpected token" JSON error**
+
 - API endpoint không khả dụng
 - Check Vercel functions logs: `vercel logs`
 
 **3. No audio from agent**
+Transcript not showing\*\*
+
+- Open browser DevTools console
+- Check for `DataReceived` event logs
+- Verify agent is sending `bot_message` type
+- Check JSON parsing errors in console
+
+\*\*5.
+
 - Check browser console for errors
 - Verify microphone permission granted
 - Check LiveKit agent server is running
 
 **4. Build failed on Vercel**
+
 - Check `vercel.json` configuration
 - Verify all dependencies in `package.json`
 - Check Vercel build logs
@@ -428,17 +551,20 @@ cd frontend && npx tsc --noEmit
 ## 📚 Tech Stack
 
 ### Frontend
+
 - **React 19** - UI framework
 - **TypeScript** - Type safety
 - **Vite 7** - Build tool & dev server
 - **LiveKit Client SDK 2.0** - WebRTC client
 
 ### Backend (Serverless)
+
 - **Vercel Functions** - Serverless API
 - **LiveKit Server SDK 2.0** - Room & token management
 - **Node.js 18+** - Runtime
 
 ### Infrastructure
+
 - **Vercel** - Hosting & deployment
 - **LiveKit Cloud** - Real-time media server
 - **GitHub** - Version control

@@ -5,11 +5,17 @@ import { createRoom } from '../lib/api';
 
 type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
 
+interface BotMessage {
+  text: string;
+  timestamp: string;
+}
+
 export default function VoiceChat() {
   const [room, setRoom] = useState<Room | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
   const [error, setError] = useState<string | null>(null);
   const [agentSpeaking, setAgentSpeaking] = useState(false);
+  const [messages, setMessages] = useState<BotMessage[]>([]);
 
   const connect = async () => {
     setStatus('connecting');
@@ -59,6 +65,22 @@ export default function VoiceChat() {
         }
       });
 
+      newRoom.on(RoomEvent.DataReceived, (payload: Uint8Array) => {
+        try {
+          const text = new TextDecoder().decode(payload);
+          const message = JSON.parse(text);
+          
+          if (message.type === 'bot_message') {
+            setMessages(prev => [...prev, {
+              text: message.text,
+              timestamp: message.timestamp
+            }]);
+          }
+        } catch (error) {
+          console.error('Error parsing data message:', error);
+        }
+      });
+
       await newRoom.connect(credentials.livekit_url, credentials.token);
       await newRoom.localParticipant.setMicrophoneEnabled(true);
 
@@ -76,6 +98,7 @@ export default function VoiceChat() {
       setRoom(null);
       setStatus('disconnected');
       setAgentSpeaking(false);
+      setMessages([]);
     }
   };
 
@@ -121,6 +144,23 @@ export default function VoiceChat() {
             <div className="info-box">
               💡 Hãy hỏi về các sản phẩm của MoMo như Túi Thần Tài, nạp tiền, rút tiền...
             </div>
+            
+            {messages.length > 0 && (
+              <div className="transcript-box">
+                <div className="transcript-header">
+                  <span>📝 Transcript</span>
+                </div>
+                <div className="transcript-messages">
+                  {messages.map((msg, index) => (
+                    <div key={index} className="transcript-message">
+                      <div className="transcript-timestamp">{msg.timestamp}</div>
+                      <div className="transcript-text">{msg.text}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
             <button onClick={disconnect} className="btn-danger">
               📞 Kết Thúc Cuộc Gọi
             </button>
