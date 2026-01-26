@@ -69,8 +69,8 @@ export default function VoiceChat() {
       newRoom.on(RoomEvent.DataReceived, (
         payload: Uint8Array,
         participant?: any,
-        kind?: any,
-        topic?: string
+        _kind?: any,
+        _topic?: string
       ) => {
         try {
           const text = new TextDecoder().decode(payload);
