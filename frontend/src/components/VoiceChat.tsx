@@ -30,21 +30,9 @@ export default function VoiceChat() {
         dynacast: true,
       });
 
-      newRoom.on(RoomEvent.Connected, () => {
-        console.log('✅ Connected to room');
-        setStatus('connected');
-      });
-
-      newRoom.on(RoomEvent.Disconnected, () => {
-        console.log('❌ Disconnected from room');
-        setStatus('disconnected');
-        setAgentSpeaking(false);
-      });
-
-      newRoom.on(RoomEvent.ParticipantConnected, (participant) => {
-        console.log('👤 Participant joined:', participant.identity);
-        
-        // Subscribe to data from this participant
+      // Helper function to setup data listener for a participant
+      const setupParticipantDataListener = (participant: any) => {
+        console.log('🔧 Setting up data listener for:', participant.identity);
         participant.on('dataReceived', (payload: Uint8Array) => {
           try {
             const text = new TextDecoder().decode(payload);
@@ -65,6 +53,28 @@ export default function VoiceChat() {
             console.error('❌ [Participant] Error parsing data message:', error);
           }
         });
+      };
+
+      newRoom.on(RoomEvent.Connected, () => {
+        console.log('✅ Connected to room');
+        setStatus('connected');
+        
+        // Setup listeners for already-connected participants (e.g., agent)
+        newRoom.remoteParticipants.forEach(participant => {
+          console.log('🔍 Found existing participant:', participant.identity);
+          setupParticipantDataListener(participant);
+        });
+      });
+
+      newRoom.on(RoomEvent.Disconnected, () => {
+        console.log('❌ Disconnected from room');
+        setStatus('disconnected');
+        setAgentSpeaking(false);
+      });
+
+      newRoom.on(RoomEvent.ParticipantConnected, (participant) => {
+        console.log('👤 Participant joined:', participant.identity);
+        setupParticipantDataListener(participant);
       });
 
       newRoom.on(RoomEvent.TrackSubscribed, (track, _publication, participant) => {
