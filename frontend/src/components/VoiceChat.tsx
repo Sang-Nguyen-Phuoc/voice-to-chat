@@ -65,10 +65,17 @@ export default function VoiceChat() {
         }
       });
 
-      newRoom.on(RoomEvent.DataReceived, (payload: Uint8Array) => {
+      // Listen for data from all participants including agent
+      newRoom.on(RoomEvent.DataReceived, (
+        payload: Uint8Array,
+        participant?: any,
+        kind?: any,
+        topic?: string
+      ) => {
         try {
           const text = new TextDecoder().decode(payload);
-          console.log('📨 DataReceived:', text);
+          console.log('📨 DataReceived from:', participant?.identity || 'unknown');
+          console.log('📨 Raw payload:', text);
           
           const message = JSON.parse(text);
           console.log('📝 Parsed message:', message);
