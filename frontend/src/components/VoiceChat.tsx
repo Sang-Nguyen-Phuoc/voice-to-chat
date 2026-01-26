@@ -283,12 +283,12 @@ export default function VoiceChat() {
         </div>
       ) : (
         <div className="voice-chat-card">
-          <h1 className="title">Trợ Lý Ảo MoMo</h1>
-          <p className="subtitle">Hỗ trợ 24/7 bằng giọng nói</p>
+          <h1 className="title">Trợ Lý Mogenie</h1>
+          <p className="subtitle">Sẵn sàng hỗ trợ 24/7</p>
 
           {status === 'disconnected' && (
             <div className="input-section">
-              <button onClick={connect} className="btn-primary"> Bắt Đầu Cuộc Trò chuyện</button>
+              <button onClick={connect} className="btn-primary">Bắt Đầu Cuộc Trò chuyện</button>
               <p className="hint">Bạn sẽ cần cho phép truy cập microphone</p>
             </div>
           )}
