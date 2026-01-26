@@ -8,20 +8,15 @@ type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
 export default function VoiceChat() {
   const [room, setRoom] = useState<Room | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
-  const [userName, setUserName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [agentSpeaking, setAgentSpeaking] = useState(false);
 
   const connect = async () => {
-    if (!userName.trim()) {
-      setError('Vui lòng nhập tên của bạn');
-      return;
-    }
-
     setStatus('connecting');
     setError(null);
 
     try {
+      const userName = `User-${Date.now()}`;
       const credentials = await createRoom(userName);
 
       const newRoom = new Room({
@@ -85,12 +80,13 @@ export default function VoiceChat() {
   };
 
   useEffect(() => {
+    connect();
     return () => {
       if (room) {
         room.disconnect();
       }
     };
-  }, [room]);
+  }, []);
 
   return (
     <div className="voice-chat-container">
@@ -106,20 +102,8 @@ export default function VoiceChat() {
         )}
 
         {status === 'disconnected' && (
-          <div className="input-section">
-            <label htmlFor="userName">Tên của bạn</label>
-            <input
-              id="userName"
-              type="text"
-              value={userName}
-              onChange={(e) => setUserName(e.target.value)}
-              placeholder="Nhập tên của bạn..."
-              onKeyPress={(e) => e.key === 'Enter' && connect()}
-            />
-            <button onClick={connect} className="btn-primary">
-              🎤 Bắt Đầu Trò Chuyện
-            </button>
-            <p className="hint">Bạn sẽ cần cho phép truy cập microphone</p>
+          <div className="info-box">
+            <p>Ngắt kết nối. Đang thử kết nối lại...</p>
           </div>
         )}
 
