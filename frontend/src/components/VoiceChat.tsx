@@ -99,8 +99,38 @@ export default function VoiceChat() {
       newRoom.on(RoomEvent.TrackSubscribed, (track, _publication, participant) => {
         if (track.kind === Track.Kind.Audio) {
           const audioElement = track.attach();
-          audioElement.play();
+          
+          // ✅ FIX: Attach to DOM for better browser compatibility
+          audioElement.style.display = 'none';
+          document.body.appendChild(audioElement);
+          
+          // ✅ FIX: Handle autoplay with error handling
+          audioElement.play()
+            .then(() => {
+              console.log('🔊 Audio playing from', participant.identity);
+            })
+            .catch((err) => {
+              console.warn('⚠️ Autoplay blocked, will retry on user interaction:', err);
+              // Retry play on next user interaction
+              const resumeAudio = () => {
+                audioElement.play();
+                document.removeEventListener('click', resumeAudio);
+              };
+              document.addEventListener('click', resumeAudio);
+            });
+          
           console.log('🔊 Subscribed to audio track from', participant.identity);
+        }
+      });
+
+      // ✅ Cleanup audio elements when track unsubscribed
+      newRoom.on(RoomEvent.TrackUnsubscribed, (track) => {
+        if (track.kind === Track.Kind.Audio) {
+          const elements = track.detach();
+          elements.forEach((el) => {
+            el.remove();
+          });
+          console.log('🔇 Audio track detached and removed');
         }
       });
 
