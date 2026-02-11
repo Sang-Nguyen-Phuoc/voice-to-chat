@@ -21,10 +21,14 @@ export default function VoiceChat() {
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | undefined>(undefined);
+  // Track the primary agent to avoid duplicate audio from multiple agents
+  const primaryAgentRef = useRef<string | null>(null);
 
   const connect = async () => {
     setStatus('connecting');
     setError(null);
+    // Reset primary agent on new connection
+    primaryAgentRef.current = null;
 
     try {
       const userName = `User-${Date.now()}`;
@@ -35,10 +39,28 @@ export default function VoiceChat() {
         dynacast: true,
       });
 
-      // Helper function to setup data listener for a participant
+      // Helper function to setup data listener for a participant (only for primary agent)
       const setupParticipantDataListener = (participant: any) => {
+        // Only process data from the primary agent to avoid duplicates
+        if (primaryAgentRef.current && participant.identity !== primaryAgentRef.current) {
+          console.log('⏭️ Skipping data listener for non-primary agent:', participant.identity);
+          return;
+        }
+        
+        // Set this as primary agent if not already set
+        if (!primaryAgentRef.current && participant.identity.startsWith('agent-')) {
+          primaryAgentRef.current = participant.identity;
+          console.log('🎯 Set primary agent:', participant.identity);
+        }
+        
         console.log('🔧 Setting up data listener for:', participant.identity);
         participant.on('dataReceived', (payload: Uint8Array) => {
+          // Double-check this is still the primary agent
+          if (primaryAgentRef.current && participant.identity !== primaryAgentRef.current) {
+            console.log('⏭️ Ignoring data from non-primary agent:', participant.identity);
+            return;
+          }
+          
           try {
             const text = new TextDecoder().decode(payload);
             console.log('📨 [Participant] DataReceived from:', participant.identity);
@@ -86,9 +108,23 @@ export default function VoiceChat() {
         
         // Setup listeners for already-connected participants (e.g., agent)
         console.log('🔍 Remote participants count:', newRoom.remoteParticipants.size);
+        
+        // First, find and set the primary agent (first agent found)
+        const agents = Array.from(newRoom.remoteParticipants.values())
+          .filter(p => p.identity.startsWith('agent-'));
+        
+        if (agents.length > 0 && !primaryAgentRef.current) {
+          primaryAgentRef.current = agents[0].identity;
+          console.log('🎯 Set primary agent on connect:', primaryAgentRef.current);
+          if (agents.length > 1) {
+            console.warn(`⚠️ Multiple agents found (${agents.length}), only using: ${primaryAgentRef.current}`);
+          }
+        }
+        
         newRoom.remoteParticipants.forEach(participant => {
           console.log('🔍 Found existing participant:', {
             identity: participant.identity,
+            isPrimaryAgent: participant.identity === primaryAgentRef.current,
             audioTracks: participant.audioTrackPublications.size,
             videoTracks: participant.videoTrackPublications.size,
             trackPublications: Array.from(participant.trackPublications.values()).map(t => ({
@@ -136,7 +172,11 @@ export default function VoiceChat() {
           isSpeaking: s.isSpeaking,
           audioLevel: s.audioLevel,
         })));
-        const agentIsSpeaking = speakers.some(s => s.identity !== newRoom.localParticipant.identity);
+        // Only consider primary agent as speaking
+        const agentIsSpeaking = speakers.some(s => 
+          s.identity !== newRoom.localParticipant.identity && 
+          s.identity === primaryAgentRef.current
+        );
         setAgentSpeaking(agentIsSpeaking);
       });
 
@@ -146,6 +186,7 @@ export default function VoiceChat() {
           trackKind: track.kind,
           trackSid: track.sid,
           trackSource: track.source,
+          isPrimaryAgent: participant.identity === primaryAgentRef.current,
           mediaStreamTrack: track.mediaStreamTrack ? {
             enabled: track.mediaStreamTrack.enabled,
             muted: track.mediaStreamTrack.muted,
@@ -160,7 +201,19 @@ export default function VoiceChat() {
         });
 
         if (track.kind === Track.Kind.Audio) {
-          console.log('🔊 Setting up audio for:', participant.identity);
+          // Set primary agent if not set yet
+          if (!primaryAgentRef.current && participant.identity.startsWith('agent-')) {
+            primaryAgentRef.current = participant.identity;
+            console.log('🎯 Set primary agent from audio track:', participant.identity);
+          }
+          
+          // Only setup audio for primary agent to avoid duplicate voices
+          if (primaryAgentRef.current && participant.identity !== primaryAgentRef.current) {
+            console.log('⏭️ Skipping audio setup for non-primary agent:', participant.identity);
+            return;
+          }
+          
+          console.log('🔊 Setting up audio for PRIMARY agent:', participant.identity);
           const audioElement = track.attach();
           
           // Log audio element state
