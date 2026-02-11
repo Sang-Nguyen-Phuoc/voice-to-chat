@@ -1,10 +1,11 @@
 // api/rooms/create.ts
-import { AccessToken, RoomServiceClient } from 'livekit-server-sdk';
+import { AccessToken, RoomServiceClient, AgentDispatchClient } from 'livekit-server-sdk';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY!;
 const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET!;
 const LIVEKIT_URL = process.env.LIVEKIT_URL!;
+const AGENT_NAME = process.env.AGENT_NAME || 'voice-assistant';  // Agent name from LiveKit Cloud
 
 export default async function handler(
   req: VercelRequest,
@@ -35,6 +36,22 @@ export default async function handler(
       emptyTimeout: 600,
       maxParticipants: 2,
     });
+
+    // ✅ Dispatch agent to join the room
+    const wsUrl = LIVEKIT_URL.replace('https://', 'wss://').replace('http://', 'ws://');
+    const agentDispatch = new AgentDispatchClient(
+      wsUrl,
+      LIVEKIT_API_KEY,
+      LIVEKIT_API_SECRET
+    );
+
+    try {
+      await agentDispatch.createDispatch(roomName, AGENT_NAME);
+      console.log(`✅ Agent "${AGENT_NAME}" dispatched to room: ${roomName}`);
+    } catch (dispatchError) {
+      console.warn('⚠️ Agent dispatch failed (agent may auto-join):', dispatchError);
+      // Continue even if dispatch fails - agent might auto-join
+    }
 
     const token = new AccessToken(
       LIVEKIT_API_KEY,
