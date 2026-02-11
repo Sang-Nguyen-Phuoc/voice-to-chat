@@ -5,7 +5,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY!;
 const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET!;
 const LIVEKIT_URL = process.env.LIVEKIT_URL!;
-const AGENT_NAME = process.env.AGENT_NAME || 'voice-assistant';  // Agent name from LiveKit Cloud
+// Agent name - leave empty ("") to dispatch to any available agent
+const AGENT_NAME = process.env.AGENT_NAME || '';  
 
 export default async function handler(
   req: VercelRequest,
@@ -59,23 +60,33 @@ export default async function handler(
       LIVEKIT_API_SECRET
     );
 
+    let dispatchStatus = { success: false, error: null as string | null, agentName: AGENT_NAME || '(any available)' };
+    
     try {
       console.log('📤 Attempting to dispatch agent...', {
+        roomName,
+        agentName: AGENT_NAME || '(empty - will pick any available agent)',
+        wsUrl,
+      });
+      const dispatchResult = await agentDispatch.createDispatch(roomName, AGENT_NAME);
+      console.log(`✅ Agent dispatched to room: ${roomName}`, {
+        dispatchResult: JSON.stringify(dispatchResult),
+        dispatchId: dispatchResult?.id,
+        dispatchAgentName: dispatchResult?.agentName,
+      });
+      dispatchStatus.success = true;
+    } catch (dispatchError: any) {
+      const errorMessage = dispatchError?.message || String(dispatchError);
+      console.error('❌ Agent dispatch failed:', {
+        error: errorMessage,
+        code: dispatchError?.code,
+        details: dispatchError?.details,
+        stack: dispatchError?.stack,
         roomName,
         agentName: AGENT_NAME,
         wsUrl,
       });
-      const dispatchResult = await agentDispatch.createDispatch(roomName, AGENT_NAME);
-      console.log(`✅ Agent "${AGENT_NAME}" dispatched to room: ${roomName}`, {
-        dispatchResult,
-      });
-    } catch (dispatchError: any) {
-      console.error('❌ Agent dispatch failed:', {
-        error: dispatchError?.message || dispatchError,
-        stack: dispatchError?.stack,
-        roomName,
-        agentName: AGENT_NAME,
-      });
+      dispatchStatus.error = errorMessage;
       // Continue even if dispatch fails - agent might auto-join
     }
 
@@ -109,11 +120,12 @@ export default async function handler(
       },
     });
 
-    console.log('📤 Sending response to client...');
+    console.log('📤 Sending response to client...', { dispatchStatus });
     return res.status(200).json({
       room_name: roomName,
       token: jwt,
       livekit_url: LIVEKIT_URL,
+      agent_dispatch: dispatchStatus,
     });
 
   } catch (error) {

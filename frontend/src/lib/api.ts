@@ -1,8 +1,15 @@
 // src/lib/api.ts
+export interface AgentDispatchStatus {
+  success: boolean;
+  error: string | null;
+  agentName: string;
+}
+
 export interface RoomCredentials {
   room_name: string;
   token: string;
   livekit_url: string;
+  agent_dispatch?: AgentDispatchStatus;
 }
 
 export async function createRoom(
@@ -35,7 +42,14 @@ export async function createRoom(
     room_name: credentials.room_name,
     livekit_url: credentials.livekit_url,
     tokenLength: credentials.token?.length,
+    agent_dispatch: credentials.agent_dispatch,
   });
+
+  // Warn if agent dispatch failed
+  if (credentials.agent_dispatch && !credentials.agent_dispatch.success) {
+    console.warn('⚠️ Agent dispatch failed:', credentials.agent_dispatch.error);
+    console.warn('⚠️ Agent name configured:', credentials.agent_dispatch.agentName);
+  }
 
   return credentials;
 }
