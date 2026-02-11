@@ -181,27 +181,45 @@ export default function VoiceChat() {
       setMessages([]);
       setIsPaused(false);
       
-      // Clean up audio visualization
+      // ✅ Cancel animation frame
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = undefined;
       }
+      
+      // ✅ FIX: Check state before closing AudioContext
       if (audioContextRef.current) {
-        audioContextRef.current.close();
+        const ctx = audioContextRef.current;
+        
+        if (ctx.state !== 'closed') {
+          try {
+            await ctx.close();
+            console.log('✅ AudioContext closed successfully');
+          } catch (err) {
+            console.warn('⚠️ AudioContext close error:', err);
+          }
+        }
+        
+        audioContextRef.current = null;
       }
+      
+      analyserRef.current = null;
     }
   };
 
   useEffect(() => {
     return () => {
-      if (room) {
-        room.disconnect();
-      }
+      // ✅ Cleanup: Only cancel animation and disconnect room
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
+      
+      // ✅ Only disconnect room if still connected
+      if (room && room.state === 'connected') {
+        room.disconnect();
       }
+      
+      // ✅ FIX: Do NOT close AudioContext here - disconnect() handles it
     };
   }, [room]);
 
