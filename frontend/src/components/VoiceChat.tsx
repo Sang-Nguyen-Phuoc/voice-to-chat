@@ -76,11 +76,28 @@ export default function VoiceChat() {
 
       newRoom.on(RoomEvent.Connected, () => {
         console.log('✅ Connected to room');
+        console.log('📊 Room state:', {
+          name: newRoom.name,
+          state: newRoom.state,
+          numParticipants: newRoom.numParticipants,
+          localParticipant: newRoom.localParticipant?.identity,
+        });
         setStatus('connected');
         
         // Setup listeners for already-connected participants (e.g., agent)
+        console.log('🔍 Remote participants count:', newRoom.remoteParticipants.size);
         newRoom.remoteParticipants.forEach(participant => {
-          console.log('🔍 Found existing participant:', participant.identity);
+          console.log('🔍 Found existing participant:', {
+            identity: participant.identity,
+            audioTracks: participant.audioTrackPublications.size,
+            videoTracks: participant.videoTrackPublications.size,
+            trackPublications: Array.from(participant.trackPublications.values()).map(t => ({
+              kind: t.kind,
+              trackSid: t.trackSid,
+              isSubscribed: t.isSubscribed,
+              isMuted: t.isMuted,
+            })),
+          });
           setupParticipantDataListener(participant);
         });
       });
@@ -92,28 +109,107 @@ export default function VoiceChat() {
       });
 
       newRoom.on(RoomEvent.ParticipantConnected, (participant) => {
-        console.log('👤 Participant joined:', participant.identity);
+        console.log('👤 Participant joined:', {
+          identity: participant.identity,
+          sid: participant.sid,
+          audioTracks: participant.audioTrackPublications.size,
+          metadata: participant.metadata,
+        });
         setupParticipantDataListener(participant);
       });
 
-      newRoom.on(RoomEvent.TrackSubscribed, (track, _publication, participant) => {
+      // Add more detailed event listeners for debugging
+      newRoom.on(RoomEvent.TrackPublished, (publication, participant) => {
+        console.log('📢 Track Published:', {
+          participantIdentity: participant.identity,
+          trackKind: publication.kind,
+          trackSid: publication.trackSid,
+          trackName: publication.trackName,
+          isSubscribed: publication.isSubscribed,
+          isMuted: publication.isMuted,
+        });
+      });
+
+      newRoom.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
+        console.log('🎙️ Active speakers changed:', speakers.map(s => ({
+          identity: s.identity,
+          isSpeaking: s.isSpeaking,
+          audioLevel: s.audioLevel,
+        })));
+        const agentIsSpeaking = speakers.some(s => s.identity !== newRoom.localParticipant.identity);
+        setAgentSpeaking(agentIsSpeaking);
+      });
+
+      newRoom.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+        console.log('🎧 Track Subscribed:', {
+          participantIdentity: participant.identity,
+          trackKind: track.kind,
+          trackSid: track.sid,
+          trackSource: track.source,
+          mediaStreamTrack: track.mediaStreamTrack ? {
+            enabled: track.mediaStreamTrack.enabled,
+            muted: track.mediaStreamTrack.muted,
+            readyState: track.mediaStreamTrack.readyState,
+          } : null,
+          publicationState: {
+            isSubscribed: publication.isSubscribed,
+            isMuted: publication.isMuted,
+            isEnabled: publication.isEnabled,
+            trackName: publication.trackName,
+          },
+        });
+
         if (track.kind === Track.Kind.Audio) {
+          console.log('🔊 Setting up audio for:', participant.identity);
           const audioElement = track.attach();
+          
+          // Log audio element state
+          console.log('🔊 Audio element created:', {
+            paused: audioElement.paused,
+            muted: audioElement.muted,
+            volume: audioElement.volume,
+            readyState: audioElement.readyState,
+            srcObject: audioElement.srcObject ? 'MediaStream exists' : 'No MediaStream',
+          });
           
           // ✅ FIX: Attach to DOM for better browser compatibility
           audioElement.style.display = 'none';
           document.body.appendChild(audioElement);
           
+          // Add event listeners to audio element for debugging
+          audioElement.addEventListener('playing', () => {
+            console.log('🎵 Audio element is playing from:', participant.identity);
+          });
+          audioElement.addEventListener('pause', () => {
+            console.log('⏸️ Audio element paused for:', participant.identity);
+          });
+          audioElement.addEventListener('ended', () => {
+            console.log('🔚 Audio element ended for:', participant.identity);
+          });
+          audioElement.addEventListener('error', (e) => {
+            console.error('❌ Audio element error:', e);
+          });
+          audioElement.addEventListener('volumechange', () => {
+            console.log('🔉 Volume changed:', audioElement.volume, 'muted:', audioElement.muted);
+          });
+          
           // ✅ FIX: Handle autoplay with error handling
           audioElement.play()
             .then(() => {
-              console.log('🔊 Audio playing from', participant.identity);
+              console.log('🔊 Audio playing successfully from', participant.identity);
+              console.log('🔊 Audio playback state:', {
+                paused: audioElement.paused,
+                currentTime: audioElement.currentTime,
+                volume: audioElement.volume,
+              });
             })
             .catch((err) => {
               console.warn('⚠️ Autoplay blocked, will retry on user interaction:', err);
               // Retry play on next user interaction
               const resumeAudio = () => {
-                audioElement.play();
+                audioElement.play()
+                  .then(() => console.log('🔊 Audio resumed after user interaction'))
+                  .catch(e => console.error('❌ Still cannot play audio:', e));
                 document.removeEventListener('click', resumeAudio);
               };
               document.addEventListener('click', resumeAudio);
@@ -142,19 +238,65 @@ export default function VoiceChat() {
 
       newRoom.on(RoomEvent.TrackUnmuted, (publication) => {
         if (publication.kind === Track.Kind.Audio) {
+          console.log('🔊 Track unmuted:', publication.trackSid, 'kind:', publication.kind);
           setAgentSpeaking(true);
         }
       });
 
+      // Add Data Received at Room level
+      newRoom.on(RoomEvent.DataReceived, (payload, participant) => {
+        console.log('📥 [Room] DataReceived:', {
+          from: participant?.identity || 'unknown',
+          payloadSize: payload.byteLength,
+        });
+      });
+
+      // Track subscription failed
+      newRoom.on(RoomEvent.TrackSubscriptionFailed, (trackSid, participant, reason) => {
+        console.error('❌ Track subscription failed:', {
+          trackSid,
+          participantIdentity: participant?.identity,
+          reason,
+        });
+      });
+
+      console.log('🔗 Connecting to LiveKit...', {
+        url: credentials.livekit_url,
+        roomName: credentials.room_name,
+        tokenPreview: credentials.token.substring(0, 50) + '...',
+      });
+
       await newRoom.connect(credentials.livekit_url, credentials.token);
+      
+      console.log('✅ Room connected, enabling microphone...');
       await newRoom.localParticipant.setMicrophoneEnabled(true);
+      
+      console.log('🎤 Microphone enabled, local participant:', {
+        identity: newRoom.localParticipant.identity,
+        audioTracks: newRoom.localParticipant.audioTrackPublications.size,
+      });
 
       setRoom(newRoom);
+      
+      // Log remote participants after connection
+      console.log('👥 Remote participants after connect:', newRoom.remoteParticipants.size);
+      newRoom.remoteParticipants.forEach((p, sid) => {
+        console.log('👤 Remote participant:', {
+          identity: p.identity,
+          sid: sid,
+          audioTracks: p.audioTrackPublications.size,
+          tracks: Array.from(p.trackPublications.values()).map(t => ({
+            kind: t.kind,
+            isSubscribed: t.isSubscribed,
+            isMuted: t.isMuted,
+          })),
+        });
+      });
       
       // Setup audio visualization
       setupAudioVisualization();
     } catch (err) {
-      console.error('Connection error:', err);
+      console.error('❌ Connection error:', err);
       setError(err instanceof Error ? err.message : 'Không thể kết nối');
       setStatus('disconnected');
     }

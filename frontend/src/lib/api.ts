@@ -9,6 +9,8 @@ export async function createRoom(
   userName: string,
   userId?: string
 ): Promise<RoomCredentials> {
+  console.log('📡 Creating room...', { userName, userId });
+  
   const response = await fetch('/api/rooms/create', {
     method: 'POST',
     headers: {
@@ -20,10 +22,20 @@ export async function createRoom(
     }),
   });
 
+  console.log('📡 Room creation response status:', response.status);
+
   if (!response.ok) {
     const error = await response.json();
+    console.error('❌ Room creation failed:', error);
     throw new Error(error.error || 'Failed to create room');
   }
 
-  return response.json();
+  const credentials = await response.json();
+  console.log('✅ Room created:', {
+    room_name: credentials.room_name,
+    livekit_url: credentials.livekit_url,
+    tokenLength: credentials.token?.length,
+  });
+
+  return credentials;
 }

@@ -25,16 +25,30 @@ export default async function handler(
     const roomName = `momo-room-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const userId = user_id || `user-${Math.random().toString(36).substring(7)}`;
 
+    console.log('🏠 Creating room...', {
+      roomName,
+      userId,
+      userName: user_name,
+      livekitUrl: LIVEKIT_URL,
+      agentName: AGENT_NAME,
+    });
+
     const roomService = new RoomServiceClient(
       LIVEKIT_URL,
       LIVEKIT_API_KEY,
       LIVEKIT_API_SECRET
     );
 
-    await roomService.createRoom({
+    const roomResult = await roomService.createRoom({
       name: roomName,
       emptyTimeout: 600,
       maxParticipants: 2,
+    });
+    
+    console.log('✅ Room created successfully:', {
+      roomName: roomResult.name,
+      sid: roomResult.sid,
+      numParticipants: roomResult.numParticipants,
     });
 
     // ✅ Dispatch agent to join the room
@@ -46,10 +60,22 @@ export default async function handler(
     );
 
     try {
-      await agentDispatch.createDispatch(roomName, AGENT_NAME);
-      console.log(`✅ Agent "${AGENT_NAME}" dispatched to room: ${roomName}`);
-    } catch (dispatchError) {
-      console.warn('⚠️ Agent dispatch failed (agent may auto-join):', dispatchError);
+      console.log('📤 Attempting to dispatch agent...', {
+        roomName,
+        agentName: AGENT_NAME,
+        wsUrl,
+      });
+      const dispatchResult = await agentDispatch.createDispatch(roomName, AGENT_NAME);
+      console.log(`✅ Agent "${AGENT_NAME}" dispatched to room: ${roomName}`, {
+        dispatchResult,
+      });
+    } catch (dispatchError: any) {
+      console.error('❌ Agent dispatch failed:', {
+        error: dispatchError?.message || dispatchError,
+        stack: dispatchError?.stack,
+        roomName,
+        agentName: AGENT_NAME,
+      });
       // Continue even if dispatch fails - agent might auto-join
     }
 
@@ -70,7 +96,20 @@ export default async function handler(
     });
 
     const jwt = await token.toJwt();
+    
+    console.log('🎫 Token generated:', {
+      roomName,
+      userId,
+      tokenLength: jwt.length,
+      grants: {
+        room: roomName,
+        roomJoin: true,
+        canPublish: true,
+        canSubscribe: true,
+      },
+    });
 
+    console.log('📤 Sending response to client...');
     return res.status(200).json({
       room_name: roomName,
       token: jwt,
